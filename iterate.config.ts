@@ -39,8 +39,7 @@ const config = defineConfig({
     },
     // This file is "just typescript", so you can do whatever you want
     // e.g. structure your rules in markdown, too, and use a helper to load them
-    ...contextRulesFromFiles("rules/**/*.md"),
-    ...tutorialRules,
+    ...contextRulesFromFiles("rules/**/*.md")
   ],
 });
 export default config;
