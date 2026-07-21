@@ -1,5 +1,5 @@
 ---
-state: todo
+state: done
 ---
 
 # Localize the Inevitability announcement into 47 languages

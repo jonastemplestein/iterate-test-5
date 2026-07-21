@@ -1,5 +1,5 @@
 ---
-state: todo
+state: in-progress
 ---
 
 # Onboard remaining G20 governments to the partner portal
