@@ -533,13 +533,19 @@ export class ComplianceNudgeApp extends IterateWorkerEntrypoint {
         .map((cookie) => cookie.trim().split("="))
         .filter(([name, value]) => name !== "" && value !== undefined),
     );
-    const assignedVariant =
-      cookies.compliance_nudge_variant === "A" || cookies.compliance_nudge_variant === "B"
-        ? cookies.compliance_nudge_variant
-        : undefined;
+    const [assignedVariant, assignmentId] = (
+      cookies.compliance_nudge_assignment ?? ""
+    ).split(".");
+    const hasAssignment =
+      (assignedVariant === "A" || assignedVariant === "B") && assignmentId !== "";
     const variant: ComplianceNudgeVariant =
-      assignedVariant ?? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? "A" : "B");
-    const isNewExposure = assignedVariant === undefined;
+      assignedVariant === "A" || assignedVariant === "B"
+        ? assignedVariant
+        : crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0
+          ? "A"
+          : "B";
+    const visitorId = hasAssignment ? assignmentId : crypto.randomUUID();
+    const isNewExposure = !hasAssignment;
     const hasParticipated = cookies.compliance_nudge_participated === "1";
 
     using itx = await this.env.ITX.get();
@@ -550,7 +556,7 @@ export class ComplianceNudgeApp extends IterateWorkerEntrypoint {
         await experiment.append({
           type: "events.task-demo.com/compliance-nudge/participated",
           payload: { variant },
-          idempotencyKey: `participated:${crypto.randomUUID()}`,
+          idempotencyKey: `participated:${visitorId}`,
         });
       }
       return new Response(
@@ -577,7 +583,7 @@ export class ComplianceNudgeApp extends IterateWorkerEntrypoint {
       await experiment.append({
         type: "events.task-demo.com/compliance-nudge/exposed",
         payload: { variant },
-        idempotencyKey: `exposed:${crypto.randomUUID()}`,
+        idempotencyKey: `exposed:${visitorId}`,
       });
     }
 
@@ -601,7 +607,7 @@ export class ComplianceNudgeApp extends IterateWorkerEntrypoint {
           "content-type": "text/html; charset=utf-8",
           ...(isNewExposure
             ? {
-                "set-cookie": `compliance_nudge_variant=${variant}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
+                "set-cookie": `compliance_nudge_assignment=${variant}.${visitorId}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
               }
             : {}),
         },
