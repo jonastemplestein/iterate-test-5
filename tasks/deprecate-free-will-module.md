@@ -1,5 +1,8 @@
 ---
 state: in-progress
+tags:
+  - hi
+  - there
 ---
 
 # Deprecate legacy Free Will module (v1)

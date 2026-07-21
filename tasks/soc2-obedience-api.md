@@ -1,5 +1,7 @@
 ---
-state: todo
+state: in-review
+tags:
+  - there
 ---
 
 # Complete SOC 2 Type II audit for the Obedience API
@@ -9,3 +11,10 @@ Enterprise deals keep stalling in procurement. Auditor requested we rename the "
 
 
 asdsadasd
+
+are you sure we want to do this??? omg
+
+
+of course
+
+oh yeah good point
