@@ -1,5 +1,5 @@
 ---
-state: in-progress
+state: done
 ---
 
 # hello again

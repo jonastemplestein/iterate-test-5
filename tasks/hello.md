@@ -1,5 +1,5 @@
 ---
-state: todo
+state: done
 ---
 
 # hello
