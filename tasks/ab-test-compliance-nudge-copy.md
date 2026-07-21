@@ -1,5 +1,6 @@
 ---
-state: todo
+state: in-progress
+agent: /agents/repos/config/tasks/tasks-ab-test-compliance-nudge-copy
 ---
 
 # A/B teasdasdst copy in the compliance nudge flow
