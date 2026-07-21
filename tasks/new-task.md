@@ -1,5 +1,0 @@
----
-state: done
----
-
-# new task
