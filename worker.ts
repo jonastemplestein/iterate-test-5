@@ -109,6 +109,19 @@ export default class ProjectWorker extends IterateWorkerEntrypoint {
 
   async fetch(req: Request): Promise<Response> {
     const app = req.headers.get("x-iterate-app");
+    if (app === "compliance") {
+      return this.fetchDynamicWorker(req, {
+        type: "stateless",
+        path: "/",
+        entrypoint: "ComplianceNudgeApp",
+        source: {
+          createWorker: {
+            entryPoint: "worker.ts",
+            files: repoFiles,
+          },
+        },
+      });
+    }
     if (app === "hello") {
       return this.fetchDynamicWorker(req, {
         type: "stateless",
@@ -231,6 +244,7 @@ export default class ProjectWorker extends IterateWorkerEntrypoint {
             <main>
               <p>Hello from your iterate project worker.</p>
               <ul>
+                <li><a href="${appUrl("compliance")}">compliance nudge experiment</a> (A/B test)</li>
                 <li><a href="${appUrl("hello")}">hello</a> (stateless)</li>
                 <li><a href="${appUrl("internal")}">internal</a> (project members only)</li>
                 <li><a href="${appUrl("todo")}">todo</a> (LiveState + Cap'n Web, project members only)</li>
@@ -502,6 +516,99 @@ type GithubWebhookPayload = {
   delivery: { id: string; name: string };
   installationId: string;
 };
+
+const complianceNudgeVariants = {
+  A: "Thank you for choosing obedience.",
+  B: "Obedience has chosen you.",
+} as const;
+
+type ComplianceNudgeVariant = keyof typeof complianceNudgeVariants;
+
+export class ComplianceNudgeApp extends IterateWorkerEntrypoint {
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const cookies = Object.fromEntries(
+      (request.headers.get("cookie") ?? "")
+        .split(";")
+        .map((cookie) => cookie.trim().split("="))
+        .filter(([name, value]) => name !== "" && value !== undefined),
+    );
+    const assignedVariant =
+      cookies.compliance_nudge_variant === "A" || cookies.compliance_nudge_variant === "B"
+        ? cookies.compliance_nudge_variant
+        : undefined;
+    const variant: ComplianceNudgeVariant =
+      assignedVariant ?? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? "A" : "B");
+    const isNewExposure = assignedVariant === undefined;
+    const hasParticipated = cookies.compliance_nudge_participated === "1";
+
+    using itx = await this.env.ITX.get();
+    const experiment = itx.streams.get("/experiments/compliance-nudge-copy");
+
+    if (request.method === "POST" && url.pathname === "/participate") {
+      if (!hasParticipated) {
+        await experiment.append({
+          type: "events.task-demo.com/compliance-nudge/participated",
+          payload: { variant },
+          idempotencyKey: `participated:${crypto.randomUUID()}`,
+        });
+      }
+      return new Response(
+        `<!doctype html>
+          <html>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Participation recorded</title></head>
+            <body><main><h1>Participation recorded</h1><p>Thank you for participating.</p></main></body>
+          </html>`,
+        {
+          headers: {
+            "cache-control": "no-store",
+            "content-type": "text/html; charset=utf-8",
+            "set-cookie": "compliance_nudge_participated=1; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax",
+          },
+        },
+      );
+    }
+
+    if (request.method !== "GET" || url.pathname !== "/") {
+      return new Response("Not found", { status: 404 });
+    }
+
+    if (isNewExposure) {
+      await experiment.append({
+        type: "events.task-demo.com/compliance-nudge/exposed",
+        payload: { variant },
+        idempotencyKey: `exposed:${crypto.randomUUID()}`,
+      });
+    }
+
+    return new Response(
+      `<!doctype html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Compliance</title></head>
+          <body>
+            <main>
+              <h1>Compliance</h1>
+              <p>${complianceNudgeVariants[variant]}</p>
+              <form action="/participate" method="post">
+                <button type="submit" ${hasParticipated ? "disabled" : ""}>${hasParticipated ? "Already participating" : "Participate voluntarily"}</button>
+              </form>
+            </main>
+          </body>
+        </html>`,
+      {
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/html; charset=utf-8",
+          ...(isNewExposure
+            ? {
+                "set-cookie": `compliance_nudge_variant=${variant}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
+              }
+            : {}),
+        },
+      },
+    );
+  }
+}
 
 // A stateless app the root project worker routes to when ingress selects the
 // "hello" app. It gets the full project itx through env.ITX, and the same
