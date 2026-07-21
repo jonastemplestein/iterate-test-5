@@ -242,7 +242,9 @@ export default class ProjectWorker extends IterateWorkerEntrypoint {
         <html>
           <body>
             <main>
-              <p>Hello from your iterate project worker.</p>
+              <h1>Monkey business</h1>
+              <p>Why did the monkey like the banana?</p>
+              <p><strong>Because it had appeal!</strong> 🍌🐒</p>
               <ul>
                 <li><a href="${appUrl("compliance")}">compliance nudge experiment</a> (A/B test)</li>
                 <li><a href="${appUrl("hello")}">hello</a> (stateless)</li>
